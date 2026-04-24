@@ -90,7 +90,7 @@ $ env-manager run api -- node server.js
 
 ## Validacion
 
-Las keys deben seguir el formato de variables de entorno: `[A-Z_][A-Z0-9_]*` (mayusculas, digitos y guion bajo). El CLI rechaza keys invalidas antes de cifrar.
+Las keys deben seguir el formato de variables de entorno: `[A-Z_][A-Z0-9_]*` (mayusculas, digitos y guion bajo). El CLI rechaza keys invalidas tanto en `set` como en `import`; si un archivo `.env` contiene una key invalida, la importacion completa se aborta sin escribir cambios parciales.
 
 ## Seguridad
 

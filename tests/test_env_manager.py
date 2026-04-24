@@ -232,6 +232,18 @@ class TestImportExport:
         import_dotenv(vault, "app", "EMPTY=")
         assert vault["envs"]["app"]["vars"]["EMPTY"] == ""
 
+    def test_import_rejects_invalid_keys(self):
+        vault = _empty_vault()
+        with pytest.raises(ValidationError, match="line 1"):
+            import_dotenv(vault, "app", "invalid-key=value")
+        assert vault["envs"] == {}
+
+    def test_import_is_atomic_when_any_key_is_invalid(self):
+        vault = _empty_vault()
+        with pytest.raises(ValidationError, match="line 2"):
+            import_dotenv(vault, "app", "VALID_KEY=ok\ninvalid-key=bad\n")
+        assert vault["envs"] == {}
+
     def test_roundtrip_export_then_import(self):
         vault = _empty_vault()
         set_var(vault, "orig", "HOST", "localhost")
@@ -387,3 +399,16 @@ class TestCLI:
         assert result.exit_code == 0
         content = Path(output_file).read_text()
         assert "KEY_A=val" in content
+
+    def test_import_command_rejects_invalid_keys_without_partial_write(self, runner, tmp_path):
+        dotenv_file = tmp_path / "bad.env"
+        dotenv_file.write_text("VALID_KEY=ok\ninvalid-key=bad\n")
+        env = {"ENV_MANAGER_PASSWORD": PASSWORD, "ENV_MANAGER_VAULT": str(tmp_path / "vault.enc")}
+        with mock.patch.dict(os.environ, env, clear=False):
+            result = runner.invoke(cli, ["import", "myapp", str(dotenv_file)])
+            assert result.exit_code != 0
+            assert "Validation error" in result.output
+
+            result = runner.invoke(cli, ["list", "--json"])
+        assert result.exit_code == 0
+        assert json.loads(result.output) == []

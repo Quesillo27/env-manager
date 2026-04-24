@@ -331,7 +331,11 @@ def import_cmd(project, file, password):
         password = _get_password()
     vault = _load_or_exit(password)
     content = Path(file).read_text()
-    count = import_dotenv(vault, project, content)
+    try:
+        count = import_dotenv(vault, project, content)
+    except ValidationError as e:
+        console.print(f"[red]Validation error:[/red] {e}")
+        sys.exit(1)
     save_vault(vault, password)
     console.print(f"[green]✓[/green] Imported {count} variable(s) into [cyan]{project}[/cyan]")
 

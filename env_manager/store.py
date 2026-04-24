@@ -23,6 +23,7 @@ from pathlib import Path
 from .config import VAULT_DIR, VAULT_FILE, VAULT_VERSION
 from .crypto import encrypt, decrypt
 from .logger import get_logger
+from .validators import validate_key, ValidationError
 
 log = get_logger("store")
 
@@ -145,8 +146,8 @@ def export_dotenv(vault: dict, project: str) -> str:
 
 def import_dotenv(vault: dict, project: str, content: str) -> int:
     """Parse .env content and import variables. Returns count of imported vars."""
-    count = 0
-    for line in content.splitlines():
+    parsed_items = []
+    for line_number, line in enumerate(content.splitlines(), start=1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -164,6 +165,12 @@ def import_dotenv(vault: dict, project: str, content: str) -> int:
             # Unescape common backslash sequences inside double-quoted values
             value = value.replace('\\"', '"').replace('\\\\', '\\').replace('\\n', '\n').replace('\\t', '\t')
         if key:
-            set_var(vault, project, key, value)
-            count += 1
-    return count
+            try:
+                validate_key(key)
+            except ValidationError as exc:
+                raise ValidationError(f"Invalid key on line {line_number}: {exc}") from exc
+            parsed_items.append((key, value))
+
+    for key, value in parsed_items:
+        set_var(vault, project, key, value)
+    return len(parsed_items)
